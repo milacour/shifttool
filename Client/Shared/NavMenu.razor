@@ -1,0 +1,60 @@
+﻿@using ShiftTool.Client.Services
+@inject NavigationManager NavigationManager
+@inject UserState userState
+@inject MessageService messageService
+
+<div class="sidebar-logo">
+    <img src="logo.png" alt="Logo" @onclick="NavigateBasedOnUserStatus">
+</div>
+
+@if (userState.IsLoggedIn)
+{
+    <!-- Links for logged-in users -->
+    <div class="nav-item px-3">
+        <NavLink class="nav-link" href="profile">
+            <span class="oi oi-person" aria-hidden="true"></span>Profil
+        </NavLink>
+    </div>
+    <div class="nav-item px-3">
+        <NavLink class="nav-link" href="book">
+            <span class="oi oi-plus" aria-hidden="true"></span>Book
+        </NavLink>
+    </div>
+    <div class="nav-item px-3">
+        <NavLink class="nav-link" href="crud">
+            <span class="oi oi-wrench" aria-hidden="true"></span>Crud
+        </NavLink>
+    </div>
+
+    <div class="nav-item px-3">
+        <NavLink class="nav-link" href="view">
+            <span class="oi oi-eye" aria-hidden="true"></span>View
+        </NavLink>
+    </div>
+
+}
+
+
+@code {
+    protected override void OnInitialized()
+    {
+        userState.OnUserStateChanged += StateHasChanged;
+    }
+
+    private void NavigateBasedOnUserStatus()
+    {
+        if (userState.IsLoggedIn)
+        {
+            NavigationManager.NavigateTo("/profile");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+    public void Dispose()
+    {
+        userState.OnUserStateChanged -= StateHasChanged;
+    }
+}

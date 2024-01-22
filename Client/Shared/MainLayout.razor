@@ -1,0 +1,124 @@
+﻿@inherits LayoutComponentBase
+@using Blazored.LocalStorage
+@using ShiftTool.Client.Services
+@using ShiftTool.Shared.Interfaces
+@using ShiftTool.Shared.DTOs
+@inject NavigationManager NavigationManager
+@inject ILocalStorageService localStorage
+@inject UserState userState
+@inject MessageService messageService
+@inject IUserService userService
+
+
+<div class="page">
+    <div class="top-row">
+        <NavLink class="nav-link" href="About">
+            <span class="oi oi-info" aria-hidden="true"></span> About
+        </NavLink>
+
+        @if (userState.IsLoggedIn)
+        {
+            <NavLink class="nav-link" @onclick="HandleLogout">
+                <span class="oi oi-lock-locked" aria-hidden="true"></span>Log ud
+            </NavLink>
+        }
+        else
+        {
+            <NavLink class="nav-link" href="/login">
+                <span class="oi oi-lock-locked" aria-hidden="true"></span>Log ind
+            </NavLink>
+        }
+
+    </div>
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+    <main>
+        <div class="message-container">
+            <MessageDisplay />
+        </div>
+        <div class="main-content">
+
+            @Body
+        </div>
+    </main>
+</div>
+
+
+@code {
+    private bool collapseNavMenu;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userState.OnUserStateChanged += UserStateChanged;
+        await CheckLoginStatus();
+    }
+
+    private void UserStateChanged()
+    {
+        UpdateNavMenuVisibility();
+        StateHasChanged();
+    }
+
+    private async Task CheckLoginStatus()
+    {
+        var isLoggedInExists = await localStorage.ContainKeyAsync("isLoggedIn");
+        var isLoggedIn = isLoggedInExists && await localStorage.GetItemAsync<bool>("isLoggedIn");
+
+        if (isLoggedIn)
+        {
+            collapseNavMenu = false;
+
+            var email = await localStorage.GetItemAsync<string>("email");
+            if (!string.IsNullOrEmpty(email))
+            {
+                try
+                {
+                    var userDto = await userService.GetCurrentUserAsync(email);
+                    if (userDto != null)
+                    {
+                        userState.Login(userDto);
+                        NavigationManager.NavigateTo("/profile");
+                    }
+                    else
+                    {
+                        await HandleLogout();
+                    }
+                }
+                catch
+                {
+                    await HandleLogout();
+                }
+            }
+            else
+            {
+                await HandleLogout();
+            }
+        }
+        else if (isLoggedInExists)
+        {
+            collapseNavMenu = true;
+            await HandleLogout();
+        }
+    }
+
+    public async Task HandleLogout()
+    {
+        await userService.LogoutAsync();
+        await localStorage.RemoveItemAsync("isLoggedIn");
+        await localStorage.RemoveItemAsync("email");
+        userState.Logout();
+        NavigationManager.NavigateTo("/");
+        collapseNavMenu = true;
+    }
+
+    private void UpdateNavMenuVisibility()
+    {
+        collapseNavMenu = !userState.IsLoggedIn;
+    }
+
+    public void Dispose()
+    {
+        userState.OnUserStateChanged -= StateHasChanged;
+    }
+}

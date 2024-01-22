@@ -1,0 +1,106 @@
+﻿@page "/login"
+@using ShiftTool.Shared.DTOs
+@using ShiftTool.Client.Services
+@using ShiftTool.Shared.Helpers
+@using Blazored.LocalStorage
+@using ShiftTool.Shared.Interfaces;
+@inject IUserService userService
+@inject NavigationManager NavigationManager
+@inject UserState userState
+@inject MessageService messageService
+@inject ILocalStorageService localStorage
+
+<h2>Log ind</h2>
+<h5>Indtast dine log ind oplysninger her</h5>
+<div class="container">
+    <EditForm Model="@userDto" OnValidSubmit="HandleLogin">
+        <div class="form-group">
+            <h6>
+                <label for="email">E-mail:</label>
+            </h6>
+            <input type="email" class="form-control" id="email" @bind="@userDto.Email" />
+        </div>
+        <div class="form-group">
+            <h6>
+                <label for="password">Kodeord:</label>
+            </h6>
+            <input type="password" class="form-control" id="password" @bind="@userDto.Password" />
+        </div>
+        <br />
+        <div>
+            <button type="submit" class="btn btn-primary">Log ind</button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private UserDTO userDto = new UserDTO();
+
+    // Initialiserer komponenten og tjekker om brugeren allerede er logget ind
+    protected override async Task OnInitializedAsync()
+    {
+        var isLoggedIn = await localStorage.GetItemAsync<bool>("isLoggedIn");
+        if (isLoggedIn)
+        {
+            var email = await localStorage.GetItemAsync<string>("email");
+            if (!string.IsNullOrEmpty(email))
+            {
+                // Hent brugeroplysningerne og naviger til profil-siden
+                NavigateToProfileIfLoggedIn(email);
+            }
+            else
+            {
+                // Hvis ingen e-mail er gemt, fjern "isLoggedIn"-flagget
+                await localStorage.RemoveItemAsync("isLoggedIn");
+            }
+        }
+    }
+
+    private async Task NavigateToProfileIfLoggedIn(string email)
+    {
+        var userDto = await userService.GetCurrentUserAsync(email);
+        if (userDto != null)
+        {
+            userState.Login(userDto);
+            NavigationManager.NavigateTo("/profil");
+        }
+    }
+
+
+    // Håndterer brugerens login
+    private async Task HandleLogin()
+    {
+        var response = await userService.LoginAsync(userDto);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
+
+            if (loginResponse != null && loginResponse.Success)
+            {
+                // Opdater brugerens login-status og gem i localStorage
+                await UpdateLoginStateAndNavigate(loginResponse.UserData);
+                messageService.SendMessage("Login succesfuldt.", false);
+            }
+            else
+            {
+                messageService.SendMessage("Login fejlede.", true);
+            }
+        }
+        else
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            messageService.SendMessage($"Login fejl: {error}", true);
+        }
+    }
+
+    // Opdaterer login-status og navigerer brugeren til profil-siden
+    private async Task UpdateLoginStateAndNavigate(UserDTO userData)
+    {
+        await localStorage.SetItemAsync("isLoggedIn", true);
+        await localStorage.SetItemAsync("userEmail", userData.Email);
+
+        userState.Login(userData);
+        NavigationManager.NavigateTo("/profil");
+    }
+}

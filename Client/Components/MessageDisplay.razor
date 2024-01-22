@@ -1,0 +1,46 @@
+﻿@using System.Threading
+@using ShiftTool.Client.Services;
+@inject MessageService messageService
+
+@namespace ShiftTool.Client.Components
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert @(isError ? "alert-danger" : "alert-success")">
+        @message
+    </div>
+}
+
+@code {
+    private string message;
+    private bool isError;
+    private Timer timer;
+
+    protected override void OnInitialized()
+    {
+        messageService.OnMessage += ShowMessage;
+    }
+
+    private void ShowMessage(string message, bool isError)
+    {
+        this.message = message;
+        this.isError = isError;
+        StateHasChanged();
+
+        // Start en timer, der fjerner beskeden efter 3 sekunder
+        timer?.Dispose(); // Stop og bortskaf den eksisterende timer, hvis der er en
+        timer = new Timer(_ => HideMessage(), null, 5000, Timeout.Infinite);
+    }
+
+    private void HideMessage()
+    {
+        this.message = null;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        messageService.OnMessage -= ShowMessage;
+        timer?.Dispose(); // Husk at bortskaffe timeren
+    }
+}

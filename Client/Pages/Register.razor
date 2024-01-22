@@ -1,0 +1,105 @@
+﻿@page "/register"
+@using ShiftTool.Shared.DTOs
+@using ShiftTool.Client.Services
+@using Blazored.LocalStorage
+@using ShiftTool.Shared.Interfaces;
+@using ShiftTool.Shared.Helpers;
+@inject IUserService userService
+@inject NavigationManager NavigationManager
+@inject MessageService messageService
+@inject ILocalStorageService localStorage
+@inject UserState userState
+
+
+<h2>Registrer</h2>
+<h5>Indtast dine brugeroplysninger her</h5>
+
+<div class="container">
+    <EditForm Model="@userDto" OnValidSubmit="HandleRegister">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="form-group">
+            <h6>
+                <label for="fullName">Fulde Navn:</label>
+            </h6>
+            <input type="text" class="form-control" id="fullName" @bind="@userDto.FullName" />
+        </div>
+        <div class="form-group">
+            <h6>
+                <label for="email">E-mail:</label>
+            </h6>
+            <input type="email" class="form-control" id="email" @bind="@userDto.Email" />
+        </div>
+        <h6>
+            <label for="password">Kodeord:</label>
+        </h6>
+        <input type="password" class="form-control" id="password" @bind="@userDto.Password" />
+        <h6>
+            <label for="confirmPassword">Bekræft Kodeord:</label>
+        </h6>
+        <input type="password" class="form-control" id="confirmPassword" @bind="@confirmPassword" />
+        <div class="form-group">
+            <h6>
+                <label for="phoneNumber">Telefonnummer:</label>
+            </h6>
+            <input type="number" class="form-control" id="phoneNumber" @bind="@userDto.PhoneNumber" />
+        </div>
+        <div class="form-group">
+            <h6>
+                <label for="experience">Erfaring:</label>
+            </h6>
+            <select class="form-control" id="experience" @bind="@userDto.Experience">
+                <option value="" disabled>Vælg Erfaring</option>
+                <option value="0-1">0-1 år</option>
+                <option value="1-3">1-3 år</option>
+                <option value="3-5">3-5 år</option>
+                <option value="5-10">5-10 år</option>
+                <option value="10+">10+ år</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <h6>
+                <label for="skills">Færdigheder:</label>
+            </h6>
+            <input type="text" class="form-control" id="skills" @bind="@userDto.Skills" rows="1">
+        </div>
+        <div class="form-group">
+            <br />
+            <div>
+                <button type="submit" class="btn btn-primary">Registrer</button>
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private UserDTO userDto = new UserDTO();
+    private string confirmPassword; // Lokal variabel til bekræftelse af kodeord
+
+    private async Task HandleRegister()
+    {
+        // Validerer, om de to kodeord matcher
+        if (userDto.Password != confirmPassword)
+        {
+            messageService.SendMessage("Kodeordene matcher ikke.", true);
+            return;
+        }
+
+        // Opretter en UserDTO til registrering
+        var response = await userService.RegisterUser(userDto);
+        if (response.IsSuccessStatusCode)
+        {
+            messageService.SendMessage("Registrering lykkedes. Du er nu logget ind.", false);
+            var loginSuccessful = await userService.HandleLogin(userDto, navigateToProfile: true);
+            if (!loginSuccessful)
+            {
+                messageService.SendMessage("Automatisk login efter registrering fejlede.", true);
+            }
+        }
+        else
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            messageService.SendMessage($"Registreringsfejl: {error}", true);
+        }
+    }
+}

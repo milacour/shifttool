@@ -1,0 +1,101 @@
+﻿@page "/view"
+@using ShiftTool.Shared.DTOs
+@using ShiftTool.Client.Services
+@using ShiftTool.Shared.Interfaces
+@inject IBookingService bookingService
+@inject IShiftService shiftService
+@inject MessageService messageService
+
+@if (isLoading)
+{
+    <p>Indlæser bookede vagter...</p>
+}
+else
+{
+    <h2>Bookede Vagter</h2>
+    <h5>Her vises alle bookede vagter</h5>
+    <br />
+    <button class="btn btn-primary" @onclick="ToggleSortOrder">
+        Sorter efter prioritet @(isDescending ? "(Faldende)" : "(Stigende)")
+    </button>
+    <br />
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Titel</th>
+                <th>Starttid</th>
+                <th>Sluttid</th>
+                <th>Prioritet</th>
+                <th>Booket af</th>
+                <th>Booking tid</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var booking in allBookings)
+            {
+                var shift = shifts.FirstOrDefault(s => s.ShiftId == booking.ShiftId);
+                if (shift != null)
+                {
+                    <tr>
+                        <td>@shift.ShiftId</td>
+                        <td>@shift.Title</td>
+                        <td>@shift.StartDateTime.ToString("dd-MM-yyyy HH:mm")</td>
+                        <td>@shift.EndDateTime.ToString("dd-MM-yyyy HH:mm")</td>
+                        <td>@shift.Priority</td>
+                        <td>@booking.Email</td>
+                        <td>@booking.BookedAt.ToString("dd-MM-yyyy HH:mm")</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<ShiftDTO> shifts = new List<ShiftDTO>();
+    private List<BookingDTO> allBookings = new List<BookingDTO>();
+    private bool isLoading = true;
+    private bool isDescending = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllBookings();
+        await LoadShifts();
+    }
+
+    private async Task LoadAllBookings()
+    {
+        isLoading = true;
+        allBookings = (await bookingService.GetAllBookingsAsync()).ToList();
+        SortBookings();
+        isLoading = false;
+    }
+
+    private async Task LoadShifts()
+    {
+        shifts = (await shiftService.GetAllShiftsAsync()).ToList();
+    }
+
+    private void SortBookings()
+    {
+        if (isDescending)
+        {
+            allBookings = allBookings
+                .OrderByDescending(booking => shifts.FirstOrDefault(shift => shift.ShiftId == booking.ShiftId)?.Priority)
+                .ToList();
+        }
+        else
+        {
+            allBookings = allBookings
+                .OrderBy(booking => shifts.FirstOrDefault(shift => shift.ShiftId == booking.ShiftId)?.Priority)
+                .ToList();
+        }
+    }
+
+    private void ToggleSortOrder()
+    {
+        isDescending = !isDescending;
+        SortBookings();
+    }
+}

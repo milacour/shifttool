@@ -1,0 +1,246 @@
+﻿@page "/crud"
+@using System
+@using ShiftTool.Shared.DTOs
+@using ShiftTool.Client.Services
+@using ShiftTool.Shared.Interfaces
+@inject IShiftService shiftService
+@inject UserState userState
+@inject MessageService messageService
+
+@if (!userState.IsLoggedIn || !userState.CurrentUser.IsCoordinator)
+{
+    // Vis en besked hvis brugeren ikke er logget ind eller ikke er koordinator
+    <p>Adgang nægtet. Kun koordinatorer har adgang til denne side.</p>
+}
+else if (isLoading)
+{
+    // Vis en indlæsningsbesked
+    <p>Indlæser...</p>
+}
+else
+{
+    // CRUD-vagt interface for koordinatorer
+    <h2>Crud Vagt</h2>
+    <h5>Foretag Crud-operationer som Koordinator</h5>
+
+    <div class="container">
+        <EditForm Model="@currentShift" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label for="title">Titel:</label>
+                <input type="text" class="form-control" id="title" @bind="@currentShift.Title" />
+            </div>
+            <div class="form-group">
+                <label for="description">Beskrivelse:</label>
+                <input type="text" class="form-control" id="description" @bind="@currentShift.Description" />
+            </div>
+            <div class="form-group">
+                <label for="Date">Dato:</label>
+                <input type="date" class="form-control" id="startdate" @bind="currentShift.StartDateTime"
+                       min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+            </div>
+            @if (currentShift.StartDateTime != default)
+            {
+                <div class="form-group">
+                    <label for="StartDateTime">Starttidspunkt:</label>
+                    <select @onchange="UpdateStartAndEndTime" class="form-control" id="startdatetime">
+                        <option value="" disabled selected>Vælg tidspunkt</option>
+                        <option value="00:00">Nattevagt 00:00</option>
+                        <option value="08:00">Morgenvagt 08:00</option>
+                        <option value="16:00">Aftenvagt 16:00</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="EndDateTime">Sluttidspunkt:</label>
+                    <input type="time" class="form-control" id="enddatetime" @bind="currentShift.EndDateTime" disabled />
+                </div>
+            }
+            <div class="form-group">
+                <label for="priority">Prioritet:</label>
+                <select id="priority" class="form-control" @bind="currentShift.Priority">
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                </select>
+            </div>
+            <br />
+            <button type="submit" class="btn btn-primary">
+                @(currentShift.ShiftId == 0 ? "Opret Vagt" : "Opdater Vagt")
+            </button>
+            @if (currentShift.ShiftId != 0)
+            {
+                <button class="btn btn-secondary" @onclick="ResetCurrentShift">Annuller</button>
+            }
+        </EditForm>
+    </div>
+    <br />
+    <button class="btn btn-primary" @onclick="ToggleSortOrder">
+        Sorter efter prioritet @(isDescending ? "(Faldende)" : "(Stigende)")
+    </button>
+    <br />
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Titel</th>
+                <th>Start</th>
+                <th>Slut</th>
+                <th>Prioritet</th>
+                <th>Booket</th>
+                <th>Handling</th>
+
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var shift in shifts)
+            {
+                <tr>
+                    <td>@shift.ShiftId</td>
+                    <td>@shift.Title </td>
+                    <td>@shift.StartDateTime.ToString("dd-MM-yyyy HH:mm")</td>
+                    <td>@shift.EndDateTime.ToString("dd-MM-yyyy HH:mm")</td>
+                    <td>@shift.Priority</td>
+                    <td>
+                        @(shift.IsBooked ? "Ja" : "Nej")
+                    </td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" @onclick="() => EditShift(shift)">Rediger</button>
+                        <button class="btn btn-danger btn-sm" @onclick="() => DeleteShift(shift)">Slet</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<ShiftDTO> shifts = new List<ShiftDTO>();
+    private ShiftDTO currentShift = new ShiftDTO();
+    private bool isLoading = true;
+    private bool isDescending = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!userState.IsLoggedIn || !userState.CurrentUser.IsCoordinator)
+        {
+            messageService.SendMessage("Adgang nægtet. Kun koordinatorer har adgang til denne side.", true);
+            return;
+        }
+
+        await LoadShifts();
+    }
+
+    private async Task LoadShifts()
+    {
+        isLoading = true;
+        var shiftsEnumerable = await shiftService.GetAllShiftsAsync();
+        shifts = shiftsEnumerable.ToList();
+        isLoading = false;
+    }
+
+
+    private async Task HandleSubmit()
+    {
+        if (currentShift.ShiftId == 0)
+        {
+            await CreateShift();
+        }
+        else
+        {
+            await UpdateShift();
+        }
+    }
+
+    private async Task CreateShift()
+    {
+        try
+        {
+            await shiftService.CreateShiftAsync(currentShift);
+            messageService.SendMessage("Vagt oprettet succesfuldt.", false);
+            ResetCurrentShift();
+            await LoadShifts();
+        }
+        catch (Exception ex)
+        {
+            messageService.SendMessage($"Fejl ved oprettelse af vagt: {ex.Message}", true);
+        }
+    }
+
+    private async Task UpdateShift()
+    {
+        try
+        {
+            await shiftService.UpdateShiftAsync(currentShift.ShiftId, currentShift);
+            messageService.SendMessage("Vagt opdateret succesfuldt.", false);
+            ResetCurrentShift();
+            await LoadShifts();
+        }
+        catch (Exception ex)
+        {
+            messageService.SendMessage($"Fejl ved opdatering af vagt: {ex.Message}", true);
+        }
+    }
+
+    private async Task DeleteShift(ShiftDTO shift)
+    {
+        try
+        {
+            // Slet vagten uanset dens booket status
+            await shiftService.DeleteShiftAsync(shift.ShiftId);
+            messageService.SendMessage("Vagt slettet succesfuldt.", false);
+            await LoadShifts();
+        }
+        catch (Exception ex)
+        {
+            messageService.SendMessage($"Fejl ved sletning af vagt: {ex.Message}", true);
+        }
+    }
+
+    private void EditShift(ShiftDTO shift)
+    {
+        currentShift = shift;
+    }
+
+    private void ResetCurrentShift()
+    {
+        currentShift = new ShiftDTO();
+    }
+
+    private void UpdateStartAndEndTime(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var selectedTime))
+        {
+            var duration = TimeSpan.FromHours(8);
+            currentShift.StartDateTime = new DateTime(
+                currentShift.StartDateTime.Year,
+                currentShift.StartDateTime.Month,
+                currentShift.StartDateTime.Day,
+                selectedTime.Hour,
+                selectedTime.Minute,
+                selectedTime.Second);
+
+            currentShift.EndDateTime = currentShift.StartDateTime.Add(duration);
+        }
+    }
+
+    private void SortShifts()
+    {
+        if (isDescending)
+        {
+            shifts = shifts.OrderByDescending(s => s.Priority).ToList();
+        }
+        else
+        {
+            shifts = shifts.OrderBy(s => s.Priority).ToList();
+        }
+    }
+
+    private void ToggleSortOrder()
+    {
+        isDescending = !isDescending;
+        SortShifts();
+    }
+}

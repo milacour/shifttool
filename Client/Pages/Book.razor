@@ -1,0 +1,95 @@
+﻿@page "/book"
+@using ShiftTool.Shared.Interfaces
+@using ShiftTool.Shared.DTOs
+@using ShiftTool.Client.Services
+@inject IShiftService shiftService
+@inject IBookingService bookingService
+@inject UserState userState
+@inject MessageService messageService
+
+<h2>Book Vagt</h2>
+<h5>Her finder du ledige vagter</h5>
+
+@if (IsLoading)
+{
+    <p>Indlæser...</p>
+}
+else if (AvailableShifts.Any())
+{
+    <div class="container-card">
+        @foreach (var shift in AvailableShifts)
+        {
+            <div class="card">
+                <h4>@shift.Title</h4>
+                <br />
+                <h6>Beskrivelse:</h6><p>@shift.Description</p>
+                <h6>Starttidspunkt:</h6><p>@shift.StartDateTime</p>
+                <h6>Sluttidspunkt:</h6><p>@shift.EndDateTime</p>
+                <h6>Prioritet: </h6><p>@shift.Priority</p>
+                <div>
+                    <button class="btn btn-primary" @onclick="() => BookShift(shift)">Book</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <p>Ingen ledige vagter tilgængelige.</p>
+}
+
+
+@code {
+    private List<ShiftDTO> AvailableShifts = new List<ShiftDTO>();
+    private bool IsLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAvailableShifts();
+    }
+
+    private async Task LoadAvailableShifts()
+    {
+        try
+        {
+            var allShifts = await shiftService.GetAllShiftsAsync();
+            AvailableShifts = allShifts.Where(shift => !shift.IsBooked).ToList();
+            IsLoading = false;
+        }
+        catch (Exception ex)
+        {
+            messageService.SendMessage($"Fejl ved indlæsning af vagter: {ex.Message}", true);
+            IsLoading = false;
+        }
+    }
+
+    private async Task BookShift(ShiftDTO shift)
+    {
+        try
+        {
+            var email = userState.CurrentUser?.Email;
+            if (string.IsNullOrEmpty(email))
+            {
+                messageService.SendMessage("Brugerens e-mail er ikke tilgængelig.", true);
+                return;
+            }
+
+            var newBooking = new BookingDTO
+            {
+                ShiftId = shift.ShiftId,
+                Email = email,
+                BookedAt = DateTime.UtcNow
+            };
+
+            await bookingService.CreateBookingAsync(newBooking);
+
+            // Opdater listen over bookede vagter
+            AvailableShifts.Remove(shift);
+            messageService.SendMessage("Vagt booket succesfuldt.", false);
+        }
+        catch (Exception ex)
+        {
+            messageService.SendMessage($"Fejl ved booking af vagt: {ex.Message}", true);
+        }
+    }
+}

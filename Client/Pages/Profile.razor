@@ -1,0 +1,279 @@
+@page "/profile"
+@using ShiftTool.Shared.DTOs
+@using ShiftTool.Client.Services
+@using ShiftTool.Shared.Interfaces;
+@using Microsoft.JSInterop
+@inject UserState userState
+@inject MessageService messageService
+@inject IUserService userService
+@inject IShiftService shiftService
+@inject IBookingService bookingService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+
+
+@if (userState.IsLoggedIn && userDto != null)
+{
+    <h2>Profil</h2>
+    <h5>Se og rediger dine oplysninger her</h5>
+    <div class="container-card">
+        <div class="card">
+            <h4>@userDto.FullName</h4>
+            <h5>@(userDto.IsCoordinator ? "(Koordinator)" : "(Frivillig)")</h5>
+            <br />
+            <div class="info-item">
+                <h6><strong>E-mail:</strong></h6>
+                <p>@userDto.Email</p>
+            </div>
+            <div class="info-item">
+                <h6><strong>Telefonnummer:</strong></h6>
+                <p>@userDto.PhoneNumber</p>
+            </div>
+            <div class="info-item">
+                <h6><strong>Erfaring:</strong></h6>
+                <p>@userDto.Experience</p>
+            </div>
+            <div class="info-item">
+                <h6><strong>Færdigheder:</strong></h6>
+                <p>@userDto.Skills</p>
+            </div>
+            <br />
+            <div>
+                <button class="btn btn-primary" @onclick="ToggleEdit">Rediger</button>
+            </div>
+        </div>
+
+        @if (IsEditEnabled)
+        {
+            <div class="card">
+                <EditForm Model="@tempUserDto" OnValidSubmit="SaveUser">
+                    <div class="form-group">
+                        <h6>
+                            <label for="fullName">Fulde Navn:</label>
+                        </h6>
+                        <input type="text" class="form-control" id="fullName" @bind="@tempUserDto.FullName" />
+                    </div>
+                    <div class="form-group">
+                        <h6>
+                            <label for="email">E-mail:</label>
+                        </h6>
+                        <input type="email" class="form-control" id="email" @bind="@tempUserDto.Email" disabled />
+                    </div>
+                    <div class="form-group">
+                        <h6>
+                            <label for="newPassword">Kodeord (hvis ændring ønskes):</label>
+                        </h6>
+                        <input type="password" class="form-control" id="newPassword" @bind="@newPassword" />
+                    </div>
+
+                    <div class="form-group">
+                        <h6>
+                            <label for="phoneNumber">Telefonnummer:</label>
+                        </h6>
+                        <input type="number" class="form-control" id="phoneNumber" @bind="@tempUserDto.PhoneNumber" />
+                    </div>
+                    <div class="form-group">
+                        <h6>
+                            <label for="experience">Erfaring:</label>
+                        </h6>
+                        <select class="form-control" id="experience" @bind="@tempUserDto.Experience">
+                            <option value="" disabled>Vælg Erfaring</option>
+                            <option value="0-1">0-1 år</option>
+                            <option value="1-3">1-3 år</option>
+                            <option value="3-5">3-5 år</option>
+                            <option value="5-10">5-10 år</option>
+                            <option value="10+">10+ år</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <h6>
+                            <label for="skills">Færdigheder:</label>
+                        </h6>
+                        <input type="text" class="form-control" id="skills" @bind="@tempUserDto.Skills" rows="1">
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-success">Gem</button>
+                        <button class="btn btn-danger" @onclick="ConfirmUserDeletion">Slet Bruger</button>
+                    </div>
+                </EditForm>
+            </div>
+        }
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Titel</th>
+                <th>Start</th>
+                <th>Slut</th>
+                <th>Prioritet</th>
+                <th>Booket af</th>
+                <th>Oprettet</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var booking in userBookings)
+            {
+                var shift = shifts.FirstOrDefault(s => s.ShiftId == booking.ShiftId);
+                if (shift != null)
+                {
+                    <tr>
+                        <td>@shift.ShiftId</td>
+                        <td>@shift.Title</td>
+                        <td>@shift.StartDateTime.ToString("dd-MM-yyyy HH:mm")</td>
+                        <td>@shift.EndDateTime.ToString("dd-MM-yyyy HH:mm")</td>
+                        <td>@shift.Priority</td>
+                        <td>@booking.Email</td>
+                        <td>@booking.BookedAt.ToString("dd-MM-yyyy HH:mm")</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private UserDTO userDto = new UserDTO();
+    private string newPassword;
+    private bool IsEditEnabled = false;
+    private UserDTO tempUserDto;
+    private ShiftDTO currentShift = new ShiftDTO();
+    private List<ShiftDTO> shifts = new List<ShiftDTO>();
+    private IEnumerable<BookingDTO> userBookings = new List<BookingDTO>();
+
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userState.OnUserStateChanged += StateHasChanged;
+
+        if (userState.IsLoggedIn)
+        {
+            userDto = userState.CurrentUser;
+            await LoadUserBookings();
+            await LoadShifts();
+        }
+        else
+        {
+            // Hvis brugeren ikke er logget ind, naviger til login-siden
+            NavigationManager.NavigateTo("/login");
+        }
+    }
+
+    private async Task SaveUser()
+    {
+        if (IsEditEnabled)
+        {
+            var updateDto = new UserDTO
+            {
+                FullName = tempUserDto.FullName,
+                PhoneNumber = tempUserDto.PhoneNumber,
+                Experience = tempUserDto.Experience,
+                Skills = tempUserDto.Skills,
+                IsCoordinator = tempUserDto.IsCoordinator,
+                Email = userDto.Email
+            };
+
+            if (!string.IsNullOrWhiteSpace(newPassword))
+            {
+                updateDto.Password = newPassword; // Tilføj kun hvis det er angivet
+            }
+
+            var response = await userService.UpdateUserAsync(userDto.Email, updateDto);
+            // Håndtering af responsen...
+            if (response.IsSuccessStatusCode)
+            {
+                userDto = tempUserDto; // Opdater userDto
+                messageService.SendMessage("Brugeroplysninger opdateret succesfuldt.", false);
+                userState.UpdateUser(userDto);
+                IsEditEnabled = false;
+            }
+            else
+            {
+                messageService.SendMessage("Fejl ved opdatering af brugeroplysninger.", true);
+            }
+        }
+    }
+
+    private async Task ConfirmUserDeletion()
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Er du sikker på, at du vil slette din bruger permanent?");
+        if (confirmed)
+        {
+            await DeleteUser();
+        }
+    }
+
+
+    private async Task DeleteUser()
+    {
+        try
+        {
+            var response = await userService.DeleteUser(userDto.Email);
+            if (response.IsSuccessStatusCode)
+            {
+                messageService.SendMessage("Bruger slettet succesfuldt.", false);
+                // Log brugeren ud og naviger til en passende side, f.eks. startside eller login-side
+                userState.Logout();
+                NavigationManager.NavigateTo("/");
+            }
+            else
+            {
+                messageService.SendMessage("Fejl ved sletning af bruger.", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            messageService.SendMessage($"Fejl ved sletning af bruger: {ex.Message}", true);
+        }
+    }
+
+    private async Task LoadShifts()
+    {
+        isLoading = true;
+        shifts = (await shiftService.GetAllShiftsAsync()).ToList();
+        isLoading = false;
+    }
+
+
+    private async Task LoadUserBookings()
+    {
+        isLoading = true;
+        if (userDto != null)
+        {
+            userBookings = await bookingService.GetUserBookingsAsync(userDto.Email);
+            userDto.Bookings = userBookings.ToList();
+        }
+        isLoading = false;
+    }
+
+    // Metoder til redigering og gemning af brugeroplysninger...
+
+    public void Dispose()
+    {
+        userState.OnUserStateChanged -= StateHasChanged;
+    }
+
+    private void ToggleEdit()
+    {
+        if (!IsEditEnabled)
+        {
+            tempUserDto = new UserDTO
+            {
+                // Kopier alle felter fra userDto til tempUserDto
+                FullName = userDto.FullName,
+                Email = userDto.Email,
+                PhoneNumber = userDto.PhoneNumber,
+                Experience = userDto.Experience,
+                Skills = userDto.Skills,
+            };
+            IsEditEnabled = true;
+        }
+        else
+        {
+            IsEditEnabled = false;
+        }
+    }
+}
+
