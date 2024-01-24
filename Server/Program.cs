@@ -32,7 +32,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("MyCorsPolicy", builder =>
     {
-        builder.WithOrigins("https://localhost:7004", "https://shifttoolserver.azurewebsites.net", "https://blue-beach-0540da41e.4.azurestaticapps.net")
+        builder.WithOrigins("https://localhost:7004", "https://shifttoolserver.azurewebsites.net", "https://mango-mushroom-09fc7f703.4.azurestaticapps.net")
                .AllowAnyHeader()
                .AllowAnyMethod();
     });
