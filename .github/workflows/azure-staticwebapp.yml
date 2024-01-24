@@ -15,7 +15,7 @@ env:
   # Angiv stien til din API kode, hvis den findes. Hvis ikke, sæt denne til "".
   API_LOCATION: "Server" 
   # Angiv stien til klientkodens build output. For Blazor-apps er det typisk 'wwwroot'.
-  APP_ARTIFACT_LOCATION: "Client/bin/Release/net7.0" 
+  APP_ARTIFACT_LOCATION: "wwwroot" 
   # Navnet på din Azure Static Web App.
   AZURE_STATIC_WEB_APP_NAME: "shittool" 
   # Deployment token for din Azure Static Web App. Gem denne værdi som en hemmelighed i din GitHub repo.
