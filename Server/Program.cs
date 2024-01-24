@@ -33,7 +33,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("MyCorsPolicy", builder =>
     {
-        builder.WithOrigins("https://csb10032002656b69a5.z6.web.core.windows.net/")
+        builder.WithOrigins("https://blue-beach-0540da41e.4.azurestaticapps.net")
                .AllowAnyHeader()
                .AllowAnyMethod();
     });
