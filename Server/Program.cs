@@ -27,7 +27,6 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ShiftTool API", Version = "v1" });
 });
 
-
 // Cors
 builder.Services.AddCors(options =>
 {
