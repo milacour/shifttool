@@ -27,11 +27,13 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ShiftTool API", Version = "v1" });
 });
 
+
+// Cors
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigin", builder =>
+    options.AddPolicy("MyCorsPolicy", builder =>
     {
-        builder.WithOrigins("https://localhost:7004")
+        builder.WithOrigins("https://csb10032002656b69a5.z6.web.core.windows.net/")
                .AllowAnyHeader()
                .AllowAnyMethod();
     });
@@ -57,7 +59,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowSpecificOrigin");
+app.UseCors("MyCorsPolicy");
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();

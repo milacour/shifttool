@@ -1,0 +1,14 @@
+{
+  "$schema": "https://aka.ms/azure/static-web-apps-cli/schema",
+  "configurations": {
+    "client": {
+      "appLocation": ".",
+      "outputLocation": "wwwroot",
+      "appBuildCommand": "dotnet publish -c Release -o bin/Release/net7.0/",
+      "apiLocation": "../Server",
+      "apiBuildCommand": "dotnet publish -c Release -o bin/Release/net7.0",
+      "appName": "shifttool",
+      "resourceGroup": "shifttool-rg"
+    }
+  }
+}

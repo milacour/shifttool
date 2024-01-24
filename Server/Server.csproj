@@ -5,20 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
-
   <PropertyGroup Condition=" '$(RunConfiguration)' == 'https' " />
   <PropertyGroup Condition=" '$(RunConfiguration)' == 'http' " />
-  <ItemGroup>
-    <None Remove="Controllers\" />
-    <None Remove="Data\ShiftToolDB.db" />
-    <None Remove="Exceptions\" />
-    <None Remove="Data\" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Controllers\" />
-    <Folder Include="Exceptions\" />
-    <Folder Include="Data\" />
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageReference Include="Npgsql" Version="7.0.6" />

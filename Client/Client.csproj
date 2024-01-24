@@ -23,19 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Shared\Shared.csproj">
-      <GlobalPropertiesToRemove></GlobalPropertiesToRemove>
-    </ProjectReference>
+    <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <None Remove="Components\" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Components\" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="Pages\Crud.Vagtrazor">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-    </None>
-  </ItemGroup>
+
 </Project>
